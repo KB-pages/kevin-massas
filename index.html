@@ -579,6 +579,15 @@ if(firebaseReady){
     }
     if(state) render();
   });
+
+  auth.getRedirectResult().catch(err=>{
+    console.error("Erro no login com Google:", err);
+    if(err.code === "auth/unauthorized-domain"){
+      alert("Este endereço do site ainda não está autorizado no Firebase. Peça pro desenvolvedor adicionar este domínio em Authentication > Settings > Authorized domains.");
+    }else if(err.code !== "auth/no-auth-event" && err.code !== "auth/cancelled-popup-request"){
+      alert("Não foi possível entrar com o Google. Tente novamente.");
+    }
+  });
 }
 
 function uid(){ return Math.random().toString(36).slice(2,9); }
@@ -957,10 +966,7 @@ function renderLoginArea(){
         return;
       }
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider).catch(err=>{
-        console.error(err);
-        alert("Não foi possível entrar com o Google. Tente novamente.");
-      });
+      auth.signInWithRedirect(provider);
     };
   }
 }
