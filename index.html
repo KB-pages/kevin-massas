@@ -7,16 +7,15 @@
 <meta name="description" content="Pastéis, coxinha e mais, feitos com carinho em Campina Grande - PB. Peça pelo cardápio digital, receba em casa ou retire no local.">
 
 <!-- Preview ao compartilhar (WhatsApp, Instagram, etc.) -->
-<!-- IMPORTANTE: troque SEU-USUARIO abaixo pelo endereço real do site depois de publicar no GitHub Pages -->
 <meta property="og:type" content="website">
 <meta property="og:title" content="Kevin Massas — Salgados artesanais">
 <meta property="og:description" content="Pastéis, coxinha e mais, feitos com carinho em Campina Grande - PB. Peça pelo cardápio digital, receba em casa ou retire no local.">
-<meta property="og:image" content="https://SEU-USUARIO.github.io/kevin-massas/imagens/capa.png">
-<meta property="og:url" content="https://SEU-USUARIO.github.io/kevin-massas/">
+<meta property="og:image" content="https://kb-pages.github.io/kevin-massas/imagens/capa.png">
+<meta property="og:url" content="https://kb-pages.github.io/kevin-massas/">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Kevin Massas — Salgados artesanais">
 <meta name="twitter:description" content="Pastéis, coxinha e mais, feitos com carinho em Campina Grande - PB.">
-<meta name="twitter:image" content="https://SEU-USUARIO.github.io/kevin-massas/imagens/capa.png">
+<meta name="twitter:image" content="https://kb-pages.github.io/kevin-massas/imagens/capa.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -566,27 +565,18 @@ async function saveData(){
   }
 }
 
-const OWNER_EMAIL = "kevynbrunoh@gmail.com"; // só essa conta Google pode editar — me avise se for outra
+const OWNER_EMAIL = "kevynbrunoh@gmail.com"; // só essa conta pode editar — me avise se for outra
 
 if(firebaseReady){
   auth.onAuthStateChanged(user=>{
     if(user && user.email !== OWNER_EMAIL){
       auth.signOut();
-      alert("Essa conta Google não tem permissão para editar o Kevin Massas.");
+      alert("Essa conta não tem permissão para editar o Kevin Massas.");
       isAdmin = false;
     }else{
       isAdmin = !!user;
     }
     if(state) render();
-  });
-
-  auth.getRedirectResult().catch(err=>{
-    console.error("Erro no login com Google:", err);
-    if(err.code === "auth/unauthorized-domain"){
-      alert("Este endereço do site ainda não está autorizado no Firebase. Peça pro desenvolvedor adicionar este domínio em Authentication > Settings > Authorized domains.");
-    }else if(err.code !== "auth/no-auth-event" && err.code !== "auth/cancelled-popup-request"){
-      alert("Não foi possível entrar com o Google. Tente novamente.");
-    }
   });
 }
 
@@ -956,17 +946,25 @@ function renderLoginArea(){
     el.innerHTML = `
       <div class="login-box">
         <h3>Identifique-se</h3>
-        <p>Entre com sua conta Google para editar o cardápio</p>
-        <button class="btn-primary red" id="googleLoginBtn">Entrar com o Google</button>
+        <p>Entre como proprietário para editar o cardápio</p>
+        <input type="email" id="emailInput" placeholder="Seu e-mail" autocomplete="username">
+        <input type="password" id="pwInput" placeholder="Sua senha" autocomplete="current-password">
+        <button class="btn-primary red" id="loginBtn">ENTRAR</button>
       </div>
     `;
-    document.getElementById("googleLoginBtn").onclick = ()=>{
+    document.getElementById("loginBtn").onclick = ()=>{
       if(!firebaseReady){
         alert("O login só funciona quando o site está publicado online (não em preview ou abrindo o arquivo local).");
         return;
       }
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithRedirect(provider);
+      const email = document.getElementById("emailInput").value.trim();
+      const pw = document.getElementById("pwInput").value;
+      if(!email || !pw){ alert("Preencha e-mail e senha."); return; }
+      auth.signInWithEmailAndPassword(email, pw)
+        .catch(err=>{
+          console.error(err);
+          alert("Não foi possível entrar: e-mail ou senha incorretos.");
+        });
     };
   }
 }
