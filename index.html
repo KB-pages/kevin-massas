@@ -46,6 +46,11 @@
       repeating-linear-gradient(-45deg, rgba(244,130,6,0.18) 0 10px, transparent 10px 20px);
     position:relative;
   }
+  .share-btn{
+    position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;
+    background:rgba(255,255,255,0.92);border:none;font-size:16px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  }
   .avatar-wrap{
     position:absolute;left:50%;top:70px;transform:translateX(-50%);
     width:104px;height:104px;border-radius:50%;background:var(--yellow);
@@ -150,6 +155,12 @@
   .order-btn{flex:1;padding:8px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;}
   .order-btn.advance{background:var(--black);color:#fff;}
   .order-btn.del{background:var(--line);color:var(--black);}
+
+  .orders-summary{
+    background:var(--yellow);color:var(--black);border-radius:10px;padding:10px 14px;
+    font-size:14px;font-weight:600;margin-bottom:14px;text-align:center;
+  }
+  .orders-summary b{font-family:'JetBrains Mono',monospace;}
 
   .item-actions{display:flex;align-items:center;gap:10px;margin-top:2px;}
   .qty-stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
@@ -267,6 +278,13 @@
     font-size:14px;font-family:'Inter',sans-serif;background:#fff;
   }
   .radio-row{display:flex;gap:10px;}
+  .calc-location-btn{
+    width:100%;margin-top:10px;background:var(--black);color:#fff;border:none;
+    border-radius:10px;padding:12px;font-size:13px;font-weight:700;cursor:pointer;
+  }
+  .calc-location-result{
+    margin-top:8px;font-size:12px;line-height:1.5;color:var(--gray);
+  }
   .radio-opt{
     flex:1;border:1.5px solid var(--line);border-radius:10px;padding:11px;text-align:center;
     font-size:13px;font-weight:600;cursor:pointer;background:#fff;
@@ -350,7 +368,10 @@
 </div>
 <div class="app" id="app">
 
-  <div class="cover"></div>
+  <div class="cover">
+    <a href="#" class="share-btn instagram-btn" id="instagramBtn" title="Instagram" target="_blank" style="display:none;right:60px;">📷</a>
+    <button class="share-btn" id="shareBtn" title="Compartilhar cardápio">📤</button>
+  </div>
   <div class="avatar-wrap" id="avatarWrap">🍝</div>
   <div class="biz-card">
     <h1 class="biz-name" id="bizName">Kevin Massas</h1>
@@ -382,10 +403,7 @@
 
   <!-- PANEL: PROMOÇÕES -->
   <div class="panel" id="panel-promocoes">
-    <div class="empty-state">
-      <span class="ic">🔍</span>
-      NENHUMA PROMOÇÃO<br>ENCONTRADA
-    </div>
+    <div id="promoContainer"></div>
   </div>
 
   <!-- PANEL: CARRINHO / PEDIDOS -->
@@ -461,14 +479,29 @@
     </select>
     <label>Texto de horário (ex: Abrimos amanhã às 18h)</label>
     <input id="bizHoursInput" type="text">
-    <label>Taxa de entrega (texto mostrado no botão)</label>
+    <label>Taxa de entrega (texto mostrado no botão, usado quando o cálculo automático não for possível)</label>
     <input id="bizFeeInput" type="text" placeholder="Ex: Taxa fixa R$ 5,00 • 30-40 min">
+    <hr style="border:none;border-top:1px solid #ECE7DE;margin:16px 0;">
+    <label>📍 Cálculo automático de frete por distância</label>
+    <div class="hint">Pra ativar, pegue a latitude/longitude da sua loja: abra o Google Maps, encontre seu endereço, toque e segure no pino até aparecer as coordenadas, e copie os dois números.</div>
+    <input id="bizLatInput" type="text" placeholder="Latitude (ex: -7.2306)" style="margin-top:8px;">
+    <input id="bizLngInput" type="text" placeholder="Longitude (ex: -35.8811)" style="margin-top:8px;">
+    <label>Taxa fixa (R$)</label>
+    <input id="bizBaseFeeInput" type="text" placeholder="Ex: 3,00">
+    <label>Valor por km rodado (R$)</label>
+    <input id="bizKmRateInput" type="text" placeholder="Ex: 2,00">
+    <label>Entrega grátis até quantos km</label>
+    <input id="bizFreeKmInput" type="text" placeholder="Ex: 0">
+    <label>Raio máximo de entrega (km)</label>
+    <input id="bizMaxKmInput" type="text" placeholder="Ex: 10">
     <hr style="border:none;border-top:1px solid #ECE7DE;margin:16px 0;">
     <label>Número de WhatsApp para receber pedidos (só números, com DDD e país)</label>
     <input id="bizWhatsInput" type="text" placeholder="Ex: 5583999999999">
     <div class="hint">O cliente finaliza o pedido e o WhatsApp abre com a mensagem pronta pra esse número.</div>
     <label>Chave Pix</label>
     <input id="bizPixInput" type="text" placeholder="CPF, e-mail, telefone ou chave aleatória">
+    <label>Link do Instagram (opcional)</label>
+    <input id="bizInstagramInput" type="text" placeholder="Ex: https://instagram.com/seu.usuario">
     <div class="modal-actions">
       <button class="cancel-btn" data-close="bizModal">Cancelar</button>
       <button class="save-btn" id="bizSaveBtn">Salvar</button>
@@ -486,6 +519,23 @@
     <div class="modal-actions">
       <button class="cancel-btn" data-close="catModal">Cancelar</button>
       <button class="save-btn" id="catSaveBtn">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="promoModal">
+  <div class="modal">
+    <button class="close-x" data-close="promoModal">✕</button>
+    <h3 id="promoModalTitle">Nova promoção</h3>
+    <label>Título</label>
+    <input id="promoTitleInput" type="text" placeholder="Ex: Leve 5 pague 4">
+    <label>Descrição</label>
+    <textarea id="promoDescInput" placeholder="Detalhe a promoção (opcional)"></textarea>
+    <label>Preço (opcional — deixe em branco se for só um aviso, sem venda direta)</label>
+    <input id="promoPriceInput" type="text" placeholder="Ex: 12,00">
+    <div class="modal-actions">
+      <button class="cancel-btn" data-close="promoModal">Cancelar</button>
+      <button class="save-btn" id="promoSaveBtn">Salvar</button>
     </div>
   </div>
 </div>
@@ -523,10 +573,17 @@ const DEFAULT_DATA = {
     status: "open",
     hoursText: "Abrimos amanhã às 18h00",
     deliveryFeeText: "Calcular taxa e tempo de entrega",
+    storeLat: null,
+    storeLng: null,
+    deliveryBaseFee: "3,00",
+    deliveryKmRate: "2,00",
+    deliveryFreeKm: "0",
+    deliveryMaxKm: "10",
     whatsapp: "5583994147741",
     pix: "kevynbrunoh@gmail.com",
     logo: "imagens/logo.png",
-    cover: "imagens/capa.png"
+    cover: "imagens/capa.png",
+    instagram: "" // cole aqui o link do seu perfil, ex: "https://instagram.com/seu.usuario"
   },
   categories: [
     {
@@ -547,7 +604,8 @@ const DEFAULT_DATA = {
         { id:"be1", name:"Água", desc:"", price:"2,50", image:"imagens/agua.png" }
       ]
     }
-  ]
+  ],
+  promotions: []
 };
 
 let state = null;
@@ -556,6 +614,52 @@ let editingCtx = null;
 let cart = []; // {itemId, catId, name, price(number), qty}
 let checkoutMode = "entrega"; // entrega | retirada
 let checkoutPayment = "pix"; // pix | dinheiro | cartao
+let calculatedDistanceKm = null;
+let calculatedDeliveryFee = null;
+let deliveryOutOfRange = false;
+
+function haversineKm(lat1, lng1, lat2, lng2){
+  const R = 6371;
+  const dLat = (lat2-lat1) * Math.PI/180;
+  const dLng = (lng2-lng1) * Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function computeDeliveryFee(distanceKm){
+  const base = priceNum(state.business.deliveryBaseFee || "0");
+  const kmRate = priceNum(state.business.deliveryKmRate || "0");
+  const freeKm = priceNum(state.business.deliveryFreeKm || "0");
+  if(distanceKm <= freeKm) return 0;
+  return base + (distanceKm - freeKm) * kmRate;
+}
+
+function calculateDeliveryFromLocation(){
+  const btn = document.getElementById("calcLocationBtn");
+  const resultEl = document.getElementById("calcLocationResult");
+  if(!navigator.geolocation){
+    resultEl.textContent = "Seu navegador não permite localização automática. Digite o endereço manualmente.";
+    return;
+  }
+  if(btn) btn.textContent = "Localizando...";
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const distance = haversineKm(state.business.storeLat, state.business.storeLng, pos.coords.latitude, pos.coords.longitude);
+    const maxKm = priceNum(state.business.deliveryMaxKm || "999");
+    if(distance > maxKm){
+      calculatedDistanceKm = distance;
+      calculatedDeliveryFee = null;
+      deliveryOutOfRange = true;
+    }else{
+      calculatedDistanceKm = distance;
+      calculatedDeliveryFee = computeDeliveryFee(distance);
+      deliveryOutOfRange = false;
+    }
+    render();
+  }, err=>{
+    if(btn) btn.textContent = "📍 Calcular frete pela minha localização";
+    resultEl.textContent = "Não foi possível obter sua localização. Você pode digitar o endereço e combinar o valor com a gente.";
+  }, {enableHighAccuracy:true, timeout:10000});
+}
 
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 
@@ -575,6 +679,14 @@ async function loadData(){
     }
     if(!state.business.whatsapp) state.business.whatsapp = DEFAULT_DATA.business.whatsapp;
     if(!state.business.deliveryFeeText) state.business.deliveryFeeText = DEFAULT_DATA.business.deliveryFeeText;
+    if(!state.promotions) state.promotions = [];
+    if(state.business.storeLat === undefined) state.business.storeLat = null;
+    if(state.business.storeLng === undefined) state.business.storeLng = null;
+    if(!state.business.deliveryBaseFee) state.business.deliveryBaseFee = DEFAULT_DATA.business.deliveryBaseFee;
+    if(!state.business.deliveryKmRate) state.business.deliveryKmRate = DEFAULT_DATA.business.deliveryKmRate;
+    if(!state.business.deliveryFreeKm) state.business.deliveryFreeKm = DEFAULT_DATA.business.deliveryFreeKm;
+    if(!state.business.deliveryMaxKm) state.business.deliveryMaxKm = DEFAULT_DATA.business.deliveryMaxKm;
+    if(state.business.instagram === undefined) state.business.instagram = "";
   }catch(e){
     console.error("Erro ao carregar do Firestore, usando cardápio padrão local:", e);
     state = deepClone(DEFAULT_DATA);
@@ -628,6 +740,13 @@ function render(){
     coverEl.style.backgroundImage = `url('${state.business.cover}')`;
     coverEl.style.backgroundSize = "cover";
     coverEl.style.backgroundPosition = "center";
+  }
+  const igBtn = document.getElementById("instagramBtn");
+  if(state.business.instagram){
+    igBtn.style.display = "flex";
+    igBtn.href = state.business.instagram;
+  }else{
+    igBtn.style.display = "none";
   }
 
   const statusEl = document.getElementById("statusLine");
@@ -691,7 +810,93 @@ function render(){
   renderLoginArea();
   renderCartBar();
   renderCartArea();
+  renderPromotions();
   hideLoadingScreen();
+}
+
+function renderPromotions(){
+  const el = document.getElementById("promoContainer");
+  if(!el) return;
+  const promos = state.promotions || [];
+  const visiblePromos = isAdmin ? promos : promos.filter(p=>p.active);
+
+  let html = "";
+  if(isAdmin){
+    html += `<div class="add-cat-bar"><button id="addPromoBtn">+ Nova promoção</button></div>`;
+  }
+
+  if(visiblePromos.length === 0){
+    html += `
+      <div class="empty-state">
+        <span class="ic">🔍</span>
+        NENHUMA PROMOÇÃO<br>ENCONTRADA
+      </div>
+    `;
+    el.innerHTML = html;
+    if(isAdmin) document.getElementById("addPromoBtn").onclick = ()=> openPromoModal(null);
+    return;
+  }
+
+  html += `<div id="promoCards"></div>`;
+  el.innerHTML = html;
+  const cardsEl = document.getElementById("promoCards");
+
+  visiblePromos.forEach(promo=>{
+    const inCart = cart.find(c=>c.itemId===promo.id);
+    const qty = inCart ? inCart.qty : 0;
+    const card = document.createElement("div");
+    card.className = "item-card promo-card" + (!promo.active ? " sold-out" : "");
+    card.innerHTML = `
+      <div class="item-info">
+        <p class="item-name">🏷️ ${promo.title}${!promo.active ? '<span class="sold-out-badge">Inativa</span>' : ''}</p>
+        ${promo.desc ? `<p class="item-desc">${promo.desc}</p>` : ""}
+        ${promo.price ? `<p class="item-price">R$ ${promo.price}</p>` : ""}
+        <div class="item-actions" id="promo-actions-${promo.id}"></div>
+      </div>
+    `;
+    if(isAdmin){
+      const ctrls = document.createElement("div");
+      ctrls.className = "item-admin-controls";
+      ctrls.innerHTML = `<button class="icon-btn soldout ${!promo.active ? '' : 'active'}" title="Ativar/desativar">${promo.active ? '✓' : '🚫'}</button><button class="icon-btn edit">✎</button><button class="icon-btn del">🗑</button>`;
+      ctrls.querySelector(".soldout").onclick = ()=> togglePromoActive(promo.id);
+      ctrls.querySelector(".edit").onclick = ()=> openPromoModal(promo.id);
+      ctrls.querySelector(".del").onclick = ()=> deletePromo(promo.id);
+      card.appendChild(ctrls);
+    }
+    cardsEl.appendChild(card);
+
+    const actionsEl = card.querySelector(`#promo-actions-${promo.id}`);
+    if(promo.active && promo.price){
+      renderItemActions(actionsEl, "promo", {id:promo.id, name:promo.title, price:promo.price, soldOut:false}, qty);
+    }
+  });
+
+  if(isAdmin) document.getElementById("addPromoBtn").onclick = ()=> openPromoModal(null);
+}
+
+function togglePromoActive(promoId){
+  const promo = state.promotions.find(p=>p.id===promoId);
+  promo.active = !promo.active;
+  if(!promo.active) cart = cart.filter(c=>c.itemId!==promoId);
+  saveData(); render();
+}
+
+function deletePromo(promoId){
+  if(!confirm("Remover esta promoção?")) return;
+  state.promotions = state.promotions.filter(p=>p.id!==promoId);
+  cart = cart.filter(c=>c.itemId!==promoId);
+  saveData(); render();
+}
+
+let editingPromoId = null;
+function openPromoModal(promoId){
+  editingPromoId = promoId;
+  const promo = promoId ? state.promotions.find(p=>p.id===promoId) : null;
+  document.getElementById("promoModalTitle").textContent = promo ? "Editar promoção" : "Nova promoção";
+  document.getElementById("promoTitleInput").value = promo ? promo.title : "";
+  document.getElementById("promoDescInput").value = promo ? promo.desc : "";
+  document.getElementById("promoPriceInput").value = promo ? promo.price : "";
+  document.getElementById("promoModal").classList.add("show");
 }
 
 function toggleSoldOut(catId, itemId){
@@ -806,11 +1011,22 @@ function renderCartArea(){
   html += `</div>`;
 
   const total = cartTotal();
+  const hasCoords = state.business.storeLat !== null && state.business.storeLng !== null;
+  let deliveryDisplay = state.business.deliveryFeeText.match(/R\$\s?[\d,]+/) ? state.business.deliveryFeeText.match(/R\$\s?[\d,]+/)[0] : "A combinar";
+  let grandTotal = total;
+  if(checkoutMode === "entrega" && calculatedDeliveryFee !== null){
+    deliveryDisplay = fmtBRL(calculatedDeliveryFee) + ` (${calculatedDistanceKm.toFixed(1)} km)`;
+    grandTotal = total + calculatedDeliveryFee;
+  }
+  if(checkoutMode === "retirada"){
+    deliveryDisplay = "Grátis (retirada)";
+    grandTotal = total;
+  }
   html += `
     <div class="cart-summary">
       <div class="row"><span>Subtotal</span><span>${fmtBRL(total)}</span></div>
-      <div class="row"><span>Entrega</span><span>${state.business.deliveryFeeText.match(/R\$\s?[\d,]+/) ? state.business.deliveryFeeText.match(/R\$\s?[\d,]+/)[0] : "A combinar"}</span></div>
-      <div class="row total"><span>Total</span><span class="val">${fmtBRL(total)}</span></div>
+      <div class="row"><span>Entrega</span><span>${deliveryDisplay}</span></div>
+      <div class="row total"><span>Total</span><span class="val">${fmtBRL(grandTotal)}</span></div>
     </div>
   `;
 
@@ -825,6 +1041,12 @@ function renderCartArea(){
     <div class="field-group" id="addrField" style="${checkoutMode==='retirada'?'display:none;':''}">
       <label>Endereço de entrega</label>
       <input id="checkoutAddress" type="text" placeholder="Rua, número, bairro">
+      ${hasCoords ? `
+        <button type="button" id="calcLocationBtn" class="calc-location-btn">📍 Calcular frete pela minha localização</button>
+        <div id="calcLocationResult" class="calc-location-result">
+          ${deliveryOutOfRange ? `⚠️ Você está a ${calculatedDistanceKm.toFixed(1)} km, fora do nosso raio de entrega (${state.business.deliveryMaxKm} km). Fale com a gente pelo WhatsApp pra combinar.` : (calculatedDeliveryFee !== null ? `✅ Distância: ${calculatedDistanceKm.toFixed(1)} km • Frete: ${fmtBRL(calculatedDeliveryFee)}` : "")}
+        </div>
+      ` : ""}
     </div>
     <div class="field-group">
       <label>Seu nome</label>
@@ -899,6 +1121,9 @@ function renderCartArea(){
   el.querySelectorAll('[data-mode]').forEach(b=> b.onclick = ()=>{ checkoutMode = b.dataset.mode; render(); });
   el.querySelectorAll('[data-pay]').forEach(b=> b.onclick = ()=>{ checkoutPayment = b.dataset.pay; render(); });
 
+  const calcBtn = document.getElementById("calcLocationBtn");
+  if(calcBtn) calcBtn.onclick = calculateDeliveryFromLocation;
+
   const finishBtn = document.getElementById("finishOrderBtn");
   if(finishBtn && !isClosed) finishBtn.onclick = sendOrderToWhatsapp;
 
@@ -941,12 +1166,19 @@ function sendOrderToWhatsapp(){
 
   if(!name || !phone){ alert("Preencha seu nome e telefone."); return; }
   if(checkoutMode === "entrega" && !address){ alert("Informe o endereço de entrega."); return; }
+  if(checkoutMode === "entrega" && deliveryOutOfRange){ alert("Você está fora do nosso raio de entrega. Fale com a gente pelo WhatsApp antes de finalizar."); return; }
+
+  const deliveryFee = (checkoutMode === "entrega" && calculatedDeliveryFee !== null) ? calculatedDeliveryFee : 0;
+  const grandTotal = cartTotal() + deliveryFee;
 
   let msg = `Olá, *${state.business.name}*! Quero fazer o seguinte pedido:\n\n`;
   cart.forEach(line=>{
     msg += `• ${line.qty}x ${line.name} — ${fmtBRL(line.price*line.qty)}\n`;
   });
-  msg += `\n*Total: ${fmtBRL(cartTotal())}*\n\n`;
+  if(deliveryFee > 0){
+    msg += `\nSubtotal: ${fmtBRL(cartTotal())}\nFrete (${calculatedDistanceKm.toFixed(1)} km): ${fmtBRL(deliveryFee)}\n`;
+  }
+  msg += `\n*Total: ${fmtBRL(grandTotal)}*\n\n`;
   msg += `*Cliente:* ${name}\n*Telefone:* ${phone}\n`;
   msg += checkoutMode === "entrega" ? `*Entrega:* ${address}\n` : `*Retirada no local*\n`;
   const payLabel = {pix:"Pix", dinheiro:"Dinheiro", cartao:"Cartão"}[checkoutPayment];
@@ -969,7 +1201,9 @@ function sendOrderToWhatsapp(){
     db.collection("orders").add({
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       items: cart.map(c=>({name:c.name, qty:c.qty, price:c.price})),
-      total: cartTotal(),
+      total: grandTotal,
+      deliveryFee: deliveryFee,
+      distanceKm: calculatedDistanceKm,
       customerName: name,
       phone: phone,
       mode: checkoutMode,
@@ -983,6 +1217,9 @@ function sendOrderToWhatsapp(){
   window.open(url, "_blank");
 
   cart = [];
+  calculatedDistanceKm = null;
+  calculatedDeliveryFee = null;
+  deliveryOutOfRange = false;
   render();
   switchTab("inicio");
 }
@@ -1001,6 +1238,7 @@ function openOrdersPanel(){
     <div class="modal">
       <button class="close-x" id="closeOrdersPanel">✕</button>
       <h3>Pedidos recebidos</h3>
+      <div id="ordersSummary" class="orders-summary"></div>
       <div id="ordersList"><p style="color:var(--gray);font-size:14px;">Carregando pedidos...</p></div>
     </div>
   `;
@@ -1009,6 +1247,20 @@ function openOrdersPanel(){
   const unsub = db.collection("orders").orderBy("createdAt", "desc").limit(50)
     .onSnapshot(snap=>{
       const listEl = overlay.querySelector("#ordersList");
+      const summaryEl = overlay.querySelector("#ordersSummary");
+
+      const now = new Date();
+      let todayCount = 0, todayTotal = 0;
+      snap.forEach(doc=>{
+        const o = doc.data();
+        const d = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate() : null;
+        if(d && d.toDateString() === now.toDateString() && o.status !== "cancelado"){
+          todayCount++;
+          todayTotal += (o.total || 0);
+        }
+      });
+      summaryEl.innerHTML = `📊 Hoje: <b>${todayCount}</b> pedido${todayCount===1?'':'s'} • <b>${fmtBRL(todayTotal)}</b>`;
+
       if(snap.empty){
         listEl.innerHTML = `<p style="color:var(--gray);font-size:14px;text-align:center;padding:20px 0;">Nenhum pedido ainda.</p>`;
         return;
@@ -1028,7 +1280,7 @@ function openOrdersPanel(){
           </div>
           <p class="order-customer">${o.customerName||"-"} • ${o.phone||"-"}</p>
           <p class="order-items">${itemsHtml}</p>
-          <p class="order-meta">${o.mode==='entrega' ? '🛵 '+(o.address||'') : '🏪 Retirada no local'} • ${({pix:"Pix",dinheiro:"Dinheiro",cartao:"Cartão"})[o.payment]||o.payment}</p>
+          <p class="order-meta">${o.mode==='entrega' ? '🛵 '+(o.address||'') : '🏪 Retirada no local'} • ${({pix:"Pix",dinheiro:"Dinheiro",cartao:"Cartão"})[o.payment]||o.payment}${o.deliveryFee ? ` • Frete: R$ ${o.deliveryFee.toFixed(2).replace(".",",")} (${o.distanceKm ? o.distanceKm.toFixed(1) : "?"} km)` : ""}</p>
           ${o.notes ? `<p class="order-notes">"${o.notes}"</p>` : ""}
           <p class="order-total">R$ ${o.total ? o.total.toFixed(2).replace(".",",") : "0,00"}</p>
           <div class="order-actions">
@@ -1156,6 +1408,22 @@ document.getElementById("catSaveBtn").onclick = ()=>{
   closeModal("catModal");
 };
 
+document.getElementById("promoSaveBtn").onclick = ()=>{
+  const title = document.getElementById("promoTitleInput").value.trim();
+  const desc = document.getElementById("promoDescInput").value.trim();
+  const price = document.getElementById("promoPriceInput").value.trim();
+  if(!title){ alert("Preencha o título da promoção."); return; }
+  if(!state.promotions) state.promotions = [];
+  if(editingPromoId){
+    const promo = state.promotions.find(p=>p.id===editingPromoId);
+    Object.assign(promo, {title, desc, price});
+  }else{
+    state.promotions.push({id:uid(), title, desc, price, active:true});
+  }
+  saveData(); render();
+  closeModal("promoModal");
+};
+
 document.getElementById("editBizBtn").onclick = ()=>{
   document.getElementById("bizNameInput").value = state.business.name;
   document.getElementById("bizLogoInput").value = "";
@@ -1165,8 +1433,15 @@ document.getElementById("editBizBtn").onclick = ()=>{
   document.getElementById("bizStatusInput").value = state.business.status;
   document.getElementById("bizHoursInput").value = state.business.hoursText;
   document.getElementById("bizFeeInput").value = state.business.deliveryFeeText;
+  document.getElementById("bizLatInput").value = state.business.storeLat !== null ? state.business.storeLat : "";
+  document.getElementById("bizLngInput").value = state.business.storeLng !== null ? state.business.storeLng : "";
+  document.getElementById("bizBaseFeeInput").value = state.business.deliveryBaseFee;
+  document.getElementById("bizKmRateInput").value = state.business.deliveryKmRate;
+  document.getElementById("bizFreeKmInput").value = state.business.deliveryFreeKm;
+  document.getElementById("bizMaxKmInput").value = state.business.deliveryMaxKm;
   document.getElementById("bizWhatsInput").value = state.business.whatsapp;
   document.getElementById("bizPixInput").value = state.business.pix;
+  document.getElementById("bizInstagramInput").value = state.business.instagram;
   document.getElementById("bizModal").classList.add("show");
 };
 document.getElementById("bizSaveBtn").onclick = ()=>{
@@ -1180,8 +1455,17 @@ document.getElementById("bizSaveBtn").onclick = ()=>{
   state.business.status = document.getElementById("bizStatusInput").value;
   state.business.hoursText = document.getElementById("bizHoursInput").value.trim();
   state.business.deliveryFeeText = document.getElementById("bizFeeInput").value.trim();
+  const latVal = document.getElementById("bizLatInput").value.trim();
+  const lngVal = document.getElementById("bizLngInput").value.trim();
+  state.business.storeLat = latVal ? parseFloat(latVal.replace(",",".")) : null;
+  state.business.storeLng = lngVal ? parseFloat(lngVal.replace(",",".")) : null;
+  state.business.deliveryBaseFee = document.getElementById("bizBaseFeeInput").value.trim() || DEFAULT_DATA.business.deliveryBaseFee;
+  state.business.deliveryKmRate = document.getElementById("bizKmRateInput").value.trim() || DEFAULT_DATA.business.deliveryKmRate;
+  state.business.deliveryFreeKm = document.getElementById("bizFreeKmInput").value.trim() || "0";
+  state.business.deliveryMaxKm = document.getElementById("bizMaxKmInput").value.trim() || DEFAULT_DATA.business.deliveryMaxKm;
   state.business.whatsapp = document.getElementById("bizWhatsInput").value.trim();
   state.business.pix = document.getElementById("bizPixInput").value.trim();
+  state.business.instagram = document.getElementById("bizInstagramInput").value.trim();
   saveData(); render();
   closeModal("bizModal");
 };
@@ -1201,6 +1485,27 @@ function switchTab(tab){
 document.querySelectorAll(".nav-btn").forEach(btn=>{
   btn.onclick = ()=> switchTab(btn.dataset.tab);
 });
+
+document.getElementById("shareBtn").onclick = async ()=>{
+  const bizName = state && state.business ? state.business.name : "Kevin Massas";
+  const shareData = {
+    title: bizName,
+    text: `Confira o cardápio do ${bizName}! 🍝`,
+    url: window.location.href
+  };
+  if(navigator.share){
+    try{ await navigator.share(shareData); }catch(e){ /* usuário cancelou, tudo bem */ }
+  }else if(navigator.clipboard && navigator.clipboard.writeText){
+    try{
+      await navigator.clipboard.writeText(window.location.href);
+      alert("Link do cardápio copiado! Agora é só colar no WhatsApp, Instagram, onde quiser.");
+    }catch(e){
+      prompt("Copie o link do cardápio:", window.location.href);
+    }
+  }else{
+    prompt("Copie o link do cardápio:", window.location.href);
+  }
+};
 
 document.getElementById("moreInfoLink").onclick = (e)=>{
   e.preventDefault();
