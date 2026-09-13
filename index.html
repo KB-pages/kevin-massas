@@ -120,6 +120,36 @@
   }
   .icon-btn.edit{background:var(--yellow);color:var(--black);}
   .icon-btn.del{background:var(--red);color:#fff;}
+  .icon-btn.soldout{background:#fff;border:1.5px solid var(--gray);color:var(--gray);}
+  .icon-btn.soldout.active{background:var(--green);border-color:var(--green);color:#fff;}
+
+  .item-card.sold-out{opacity:0.6;}
+  .item-card.sold-out .item-img{filter:grayscale(1);}
+  .sold-out-badge{
+    display:inline-block;background:var(--red);color:#fff;font-size:10px;font-weight:800;
+    padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;letter-spacing:0.3px;
+  }
+  .sold-out-label{font-size:12px;color:var(--gray);font-weight:600;font-style:italic;}
+
+  .order-card{
+    background:#fff;border:1px solid var(--line);border-left:4px solid var(--gray);
+    border-radius:12px;padding:14px;margin-bottom:12px;font-size:13px;
+  }
+  .order-card.status-novo{border-left-color:var(--red);}
+  .order-card.status-preparando{border-left-color:var(--yellow);}
+  .order-card.status-entregue{border-left-color:var(--green);}
+  .order-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .order-status-badge{font-weight:800;font-size:12px;}
+  .order-time{color:var(--gray);font-size:11px;}
+  .order-customer{font-weight:700;margin:0 0 4px;}
+  .order-items{color:var(--black);margin:0 0 4px;}
+  .order-meta{color:var(--gray);margin:0 0 4px;}
+  .order-notes{color:var(--gray);font-style:italic;margin:0 0 4px;}
+  .order-total{font-family:'JetBrains Mono',monospace;font-weight:800;color:var(--red-dark);margin:0 0 8px;}
+  .order-actions{display:flex;gap:8px;}
+  .order-btn{flex:1;padding:8px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;}
+  .order-btn.advance{background:var(--black);color:#fff;}
+  .order-btn.del{background:var(--line);color:var(--black);}
 
   .item-actions{display:flex;align-items:center;gap:10px;margin-top:2px;}
   .qty-stepper{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
@@ -629,10 +659,10 @@ function render(){
       const inCart = cart.find(c=>c.itemId===item.id);
       const qty = inCart ? inCart.qty : 0;
       const card = document.createElement("div");
-      card.className = "item-card";
+      card.className = "item-card" + (item.soldOut ? " sold-out" : "");
       card.innerHTML = `
         <div class="item-info">
-          <p class="item-name">${item.name}</p>
+          <p class="item-name">${item.name}${item.soldOut ? '<span class="sold-out-badge">Esgotado</span>' : ''}</p>
           ${item.desc ? `<p class="item-desc">${item.desc}</p>` : ""}
           <p class="item-price">R$ ${item.price}</p>
           <div class="item-actions" id="actions-${item.id}"></div>
@@ -642,7 +672,8 @@ function render(){
       if(isAdmin){
         const ctrls = document.createElement("div");
         ctrls.className = "item-admin-controls";
-        ctrls.innerHTML = `<button class="icon-btn edit">✎</button><button class="icon-btn del">🗑</button>`;
+        ctrls.innerHTML = `<button class="icon-btn soldout ${item.soldOut ? 'active' : ''}" title="Marcar esgotado">${item.soldOut ? '✓' : '🚫'}</button><button class="icon-btn edit">✎</button><button class="icon-btn del">🗑</button>`;
+        ctrls.querySelector(".soldout").onclick = ()=> toggleSoldOut(cat.id, item.id);
         ctrls.querySelector(".edit").onclick = ()=> openItemModal(cat.id, item.id);
         ctrls.querySelector(".del").onclick = ()=> deleteItem(cat.id, item.id);
         card.appendChild(ctrls);
@@ -663,6 +694,16 @@ function render(){
   hideLoadingScreen();
 }
 
+function toggleSoldOut(catId, itemId){
+  const cat = state.categories.find(c=>c.id===catId);
+  const item = cat.items.find(i=>i.id===itemId);
+  item.soldOut = !item.soldOut;
+  if(item.soldOut){
+    cart = cart.filter(c=>c.itemId!==itemId);
+  }
+  saveData(); render();
+}
+
 let loadingHidden = false;
 function hideLoadingScreen(){
   if(loadingHidden) return;
@@ -674,6 +715,10 @@ function hideLoadingScreen(){
 }
 
 function renderItemActions(el, catId, item, qty){
+  if(item.soldOut){
+    el.innerHTML = `<span class="sold-out-label">Sem estoque no momento</span>`;
+    return;
+  }
   if(qty === 0){
     el.innerHTML = `<button class="add-cart-btn">+ Adicionar</button>`;
     el.querySelector(".add-cart-btn").onclick = ()=> changeCartQty(catId, item, 1);
@@ -919,11 +964,102 @@ function sendOrderToWhatsapp(){
 
   const number = (state.business.whatsapp || "").replace(/\D/g,"");
   const url = `https://wa.me/${number}?text=${encodeURIComponent(msg)}`;
+
+  if(firebaseReady){
+    db.collection("orders").add({
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      items: cart.map(c=>({name:c.name, qty:c.qty, price:c.price})),
+      total: cartTotal(),
+      customerName: name,
+      phone: phone,
+      mode: checkoutMode,
+      address: checkoutMode === "entrega" ? address : "",
+      payment: checkoutPayment,
+      notes: notes,
+      status: "novo"
+    }).catch(err=> console.warn("Não foi possível salvar o pedido no painel (o WhatsApp ainda funciona normalmente):", err));
+  }
+
   window.open(url, "_blank");
 
   cart = [];
   render();
   switchTab("inicio");
+}
+
+const STATUS_FLOW = ["novo", "preparando", "entregue"];
+const STATUS_LABELS = {novo:"🆕 Novo", preparando:"👨‍🍳 Preparando", entregue:"✅ Entregue", cancelado:"❌ Cancelado"};
+
+function openOrdersPanel(){
+  if(!firebaseReady){
+    alert("O painel de pedidos só funciona com o site publicado online.");
+    return;
+  }
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay show";
+  overlay.innerHTML = `
+    <div class="modal">
+      <button class="close-x" id="closeOrdersPanel">✕</button>
+      <h3>Pedidos recebidos</h3>
+      <div id="ordersList"><p style="color:var(--gray);font-size:14px;">Carregando pedidos...</p></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const unsub = db.collection("orders").orderBy("createdAt", "desc").limit(50)
+    .onSnapshot(snap=>{
+      const listEl = overlay.querySelector("#ordersList");
+      if(snap.empty){
+        listEl.innerHTML = `<p style="color:var(--gray);font-size:14px;text-align:center;padding:20px 0;">Nenhum pedido ainda.</p>`;
+        return;
+      }
+      listEl.innerHTML = "";
+      snap.forEach(doc=>{
+        const o = doc.data();
+        const status = o.status || "novo";
+        const when = o.createdAt && o.createdAt.toDate ? o.createdAt.toDate().toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "agora";
+        const itemsHtml = (o.items||[]).map(it=>`${it.qty}x ${it.name}`).join(", ");
+        const card = document.createElement("div");
+        card.className = "order-card status-"+status;
+        card.innerHTML = `
+          <div class="order-top">
+            <span class="order-status-badge">${STATUS_LABELS[status]||status}</span>
+            <span class="order-time">${when}</span>
+          </div>
+          <p class="order-customer">${o.customerName||"-"} • ${o.phone||"-"}</p>
+          <p class="order-items">${itemsHtml}</p>
+          <p class="order-meta">${o.mode==='entrega' ? '🛵 '+(o.address||'') : '🏪 Retirada no local'} • ${({pix:"Pix",dinheiro:"Dinheiro",cartao:"Cartão"})[o.payment]||o.payment}</p>
+          ${o.notes ? `<p class="order-notes">"${o.notes}"</p>` : ""}
+          <p class="order-total">R$ ${o.total ? o.total.toFixed(2).replace(".",",") : "0,00"}</p>
+          <div class="order-actions">
+            ${status !== "entregue" && status !== "cancelado" ? `<button class="order-btn advance" data-id="${doc.id}" data-status="${status}">Avançar status</button>` : ""}
+            <button class="order-btn del" data-id="${doc.id}">Excluir</button>
+          </div>
+        `;
+        listEl.appendChild(card);
+      });
+      listEl.querySelectorAll(".advance").forEach(btn=>{
+        btn.onclick = ()=>{
+          const idx = STATUS_FLOW.indexOf(btn.dataset.status);
+          const next = STATUS_FLOW[idx+1] || "entregue";
+          db.collection("orders").doc(btn.dataset.id).update({status: next});
+        };
+      });
+      listEl.querySelectorAll(".del").forEach(btn=>{
+        btn.onclick = ()=>{
+          if(confirm("Excluir este pedido do painel?")){
+            db.collection("orders").doc(btn.dataset.id).delete();
+          }
+        };
+      });
+    }, err=>{
+      overlay.querySelector("#ordersList").innerHTML = `<p style="color:var(--red);font-size:14px;">Erro ao carregar pedidos. Confira as regras do Firestore.</p>`;
+      console.error(err);
+    });
+
+  const closeIt = ()=>{ unsub(); overlay.remove(); };
+  overlay.querySelector("#closeOrdersPanel").onclick = closeIt;
+  overlay.onclick = (e)=>{ if(e.target===overlay) closeIt(); };
 }
 
 function renderLoginArea(){
@@ -935,10 +1071,12 @@ function renderLoginArea(){
         <div class="login-box" style="margin:0;">
           <h3>Você está editando o Kevin Massas</h3>
           <p>Toque nos ícones ✎ e 🗑 pelos itens, ou use os botões de editar informações, WhatsApp/Pix e adicionar categoria/item.</p>
+          <button class="btn-primary red" id="ordersPanelBtn" style="margin-bottom:10px;">📋 Ver pedidos recebidos</button>
           <button class="logout-btn" id="logoutBtn">Sair do modo edição</button>
         </div>
       </div>
     `;
+    document.getElementById("ordersPanelBtn").onclick = openOrdersPanel;
     document.getElementById("logoutBtn").onclick = ()=>{
       auth.signOut();
     };
